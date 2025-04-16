@@ -13,17 +13,26 @@ qemu-img create -f raw disk.img 10G
 loopdev=$(losetup -f --show disk.img)
 sgdisk -og "${loopdev}"
 sgdisk -n 1:2048:4194303 -c 1:"EFI System Partition" -t 1:ef00 "${loopdev}"
-sgdisk -n 2:4194304:+0 -c 2:"Root System Partition" -t 2:8300 "${loopdev}"
+sgdisk -n 2:4194304:8388607 -c 2:"Combustion Partition" -t 2:933AC7E1-2EB4-11D4-B925-00508B9E0000 "${loopdev}"
+sgdisk -n 3:8388608:+0 -c 3:"Root System Partition" -t 3:8300 "${loopdev}"
 partx -u "${loopdev}"
 mkfs.vfat -F 16 -n EFI "${loopdev}p1"
-mkfs.btrfs -L SYSTEM "${loopdev}p2" -f
+mkfs.ext4 -L INSTALL "${loopdev}p2" -F
+mkfs.btrfs -L SYSTEM "${loopdev}p3" -f
 partx -u "${loopdev}"
 
 workdir=/mnt/root
 srcdir="${img_mnt}"
 
+mkdir -p abc
+mount "${loopdev}p2" abc
+
+mkdir -p abc/combustion
+cp config.sh abc/combustion/script
+chmod +x abc/combustion/script
+
 mkdir -p "${workdir}"
-mount "${loopdev}p2" "${workdir}"
+mount "${loopdev}p3" "${workdir}"
 
 # Set root subvolume and quota
 btrfs quota enable "${workdir}"
@@ -88,7 +97,7 @@ rsync --info=progress2 --human-readable --partial --archive --xattrs --acls --fi
 
 # Mount snapshots subvolume at "${workdir}/@/.snapshots/1/snapshot"
 mkdir -p "${workdir}/@/.snapshots/1/snapshot/.snapshots"
-mount -t btrfs -o defaults,subvol=/@/.snapshots "${loopdev}p2"  "${workdir}/@/.snapshots/1/snapshot/.snapshots"
+mount -t btrfs -o defaults,subvol=/@/.snapshots "${loopdev}p3"  "${workdir}/@/.snapshots/1/snapshot/.snapshots"
 
 
 # Create root snapper configuration
@@ -125,24 +134,6 @@ done
 
 # set first snapshot as readonly
 btrfs property set "${workdir}/@/.snapshots/1/snapshot" ro true
-
-
-# Run chrooted configuration script at "${workdir}/@/.snapshots/1/snapshot"
-if [ -f "${SCRIPT_PATH}/config.sh" ]; then
-  mkdir -p "${workdir}/@/.snapshots/1/snapshot/var/tmp-builder-config"
-  cp "${SCRIPT_PATH}/config.sh" "${workdir}/@/.snapshots/1/snapshot/var/tmp-builder-config"
-  mount -t proc /proc "${workdir}/@/.snapshots/1/snapshot/proc"
-  mount -t sysfs /sys "${workdir}/@/.snapshots/1/snapshot/sys"
-  mount --bind /dev "${workdir}/@/.snapshots/1/snapshot/dev"
-  mount --bind /dev/pts "${workdir}/@/.snapshots/1/snapshot/dev/pts"
-  chroot "${workdir}/@/.snapshots/1/snapshot" /var/tmp-builder-config/config.sh
-  umount "${workdir}/@/.snapshots/1/snapshot/dev/pts"
-  umount "${workdir}/@/.snapshots/1/snapshot/dev"
-  umount "${workdir}/@/.snapshots/1/snapshot/sys"
-  umount "${workdir}/@/.snapshots/1/snapshot/proc"
-  rm -rf "${workdir}/@/.snapshots/1/snapshot/var/tmp-builder-config"
-fi
-
 
 # Umount everything
 umount "${workdir}/@/.snapshots/1/snapshot/boot/efi"
