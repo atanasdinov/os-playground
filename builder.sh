@@ -17,7 +17,7 @@ sgdisk -n 2:4194304:8388607 -c 2:"Combustion Partition" -t 2:933AC7E1-2EB4-11D4-
 sgdisk -n 3:8388608:+0 -c 3:"Root System Partition" -t 3:8300 "${loopdev}"
 partx -u "${loopdev}"
 mkfs.vfat -F 16 -n EFI "${loopdev}p1"
-mkfs.ext4 -L INSTALL "${loopdev}p2" -F
+mkfs.ext4 -L ignition "${loopdev}p2" -F
 mkfs.btrfs -L SYSTEM "${loopdev}p3" -f
 partx -u "${loopdev}"
 
@@ -30,6 +30,9 @@ mount "${loopdev}p2" abc
 mkdir -p abc/combustion
 cp config.sh abc/combustion/script
 chmod +x abc/combustion/script
+
+mkdir -p abc/ignition
+cp config.ign abc/ignition/config.ign
 
 mkdir -p "${workdir}"
 mount "${loopdev}p3" "${workdir}"

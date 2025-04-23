@@ -12,11 +12,9 @@ RUN zypper --non-interactive --gpg-auto-import-keys install --no-recommends -- \
       chrony \
       dracut \
       fipscheck \
-      pam_pwquality \
       iputils \
       issue-generator \
       vim-small \
-      haveged \
       less \
       parted \
       gptfdisk \
@@ -25,21 +23,20 @@ RUN zypper --non-interactive --gpg-auto-import-keys install --no-recommends -- \
       rsync \
       dosfstools \
       lsof \
-      live-add-yast-repos \
-      zypper-needs-restarting \
+      ignition \
       combustion \
-      grub2 \
       grub2-branding-openSUSE \
       grub2-x86_64-efi \
       shim \
-      kernel-default-base \
+      kernel-default \
       btrfsprogs \
       btrfsmaintenance \
       snapper \
-      firewalld \
       podman \
-      git \
-      NetworkManager && \
+      git-core \
+      NetworkManager \
+      systemd \
+      systemd-default-settings-branding-SLE && \
     zypper clean --all
 
 # Install EFI binaries at /boot/efi/EFI/BOOT
@@ -53,7 +50,7 @@ RUN mkdir -p /boot/grub2/fonts && \
     cp /usr/share/grub2/unicode.pf2 /boot/grub2/fonts
 
 # Generate initrd and kernel and initrd links
-RUN kernel=$(ls /boot/vmlinuz-* | head -n1) && \ 
+RUN kernel=$(ls /boot/vmlinuz-* | head -n1) && \
     dracut -f --no-hostonly "/boot/initrd-${kernel##/boot/vmlinuz-}" "${kernel##/boot/vmlinuz-}" && \
     ln -s "/boot/initrd-${kernel##/boot/vmlinuz-}" /boot/initrd && \
     ln -sf "${kernel}" /boot/vmlinuz
